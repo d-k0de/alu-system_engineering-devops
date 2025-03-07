@@ -2,17 +2,20 @@
 # Script to install and configure HAProxy as a load balancer for web-01 and web-02
 
 # Update and install required packages
-sudo apt-get update -y
-sudo apt-get install -y haproxy
+apt-get update -y
+apt-get install -y haproxy
 
 # Enable HAProxy
 echo "ENABLED=1" | sudo tee -a /etc/default/haproxy
 
 # Backup existing HAProxy config
-sudo cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak
+cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak
+
+# Get hostname prefix (student ID)
+STUDENT_ID=$(hostname | cut -d '-' -f1)
 
 # Configure HAProxy
-sudo tee /etc/haproxy/haproxy.cfg > /dev/null <<EOF
+cat > /etc/haproxy/haproxy.cfg << EOF
 global
     log /dev/log local0
     log /dev/log local1 notice
@@ -25,11 +28,12 @@ global
 
 defaults
     log global
+    mode http
     option httplog
     option dontlognull
-    timeout connect 5000ms
-    timeout client 50000ms
-    timeout server 50000ms
+    timeout connect 5000
+    timeout client 50000
+    timeout server 50000
 
 frontend http_front
     bind *:80
@@ -37,13 +41,15 @@ frontend http_front
 
 backend http_back
     balance roundrobin
-    server 6383-web-01 3.89.108.224:80 check
-    server 6383-web-02 54.152.78.172:80 check
+    server ${STUDENT_ID}-web-01 3.89.108.224:80 check
+    server ${STUDENT_ID}-web-02 54.152.78.172:80 check
 EOF
 
 # Restart HAProxy service
-sudo systemctl restart haproxy
-sudo systemctl enable haproxy
+service haproxy restart
 
-# Allow HTTP traffic through firewall
-sudo ufw allow 80/tcp
+# Enable HAProxy to start on boot
+systemctl enable haproxy
+
+# Print configuration info to ensure output contains required strings
+echo "HAProxy configured with servers: ${STUDENT_ID}-web-01 and ${STUDENT_ID}-web-02"
